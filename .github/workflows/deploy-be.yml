@@ -22,7 +22,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/my-project-backend:latest
+          tags: huyhoang2609/my-project-frontend:latest
 
       # Copy file docker-compose mới nhất lên server
       - name: Copy docker-compose
