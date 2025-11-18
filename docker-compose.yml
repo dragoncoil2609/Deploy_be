@@ -16,7 +16,7 @@ services:
   # Backend API
   backend:
     # Image này được build từ Repo Backend
-    image: ${{ secrets.DOCKER_USERNAME }}/my-project-backend:latest 
+    image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
     ports:
