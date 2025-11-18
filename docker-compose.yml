@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # Database
+  db:
+    image: mysql:8.0
+    container_name: my-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword123 
+      MYSQL_DATABASE: my_database
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  # Backend API
+  backend:
+    # Image này được build từ Repo Backend
+    image: ${{ secrets.DOCKER_USERNAME }}/my-project-backend:latest 
+    container_name: my-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASS: rootpassword123
+      DB_NAME: my_database
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  # Frontend
+  frontend:
+    # Image này được build từ Repo Frontend (quan trọng tên phải khớp)
+    image: ${{ secrets.DOCKER_USERNAME }}/my-project-frontend:latest
+    container_name: my-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  mysql_data:
+
+networks:
+  app-network:
+    driver: bridge
