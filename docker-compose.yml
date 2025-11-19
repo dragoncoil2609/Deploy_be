@@ -1,26 +1,26 @@
 version: '3.8'
 
 services:
-  # 1. Database MySQL
+  # Database
   db:
     image: mysql:8.0
     container_name: my-mysql
     ports:
       - "3306:3306" # Mở cổng DB ra host EC2
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword123
-      MYSQL_DATABASE: my_database_name
-      # FIX LỖI WORKBENCH VÀ KẾT NỐI TỪ XA
-      MYSQL_ROOT_HOST: "%"
-      MYSQL_AUTHENTICATION_PLUGIN: 'mysql_native_password'
+      MYSQL_ROOT_PASSWORD: rootpassword123 
+      MYSQL_DATABASE: my_database
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql 
+    ports:
+      - "3306:3306" # Đảm bảo port này có
     networks:
       - app-network
 
   # 2. Backend API (Node.js)
   backend:
-    image: huyhoang2609/my-project-backend:latest # Tên Image Backend (đã hardcode)
+    # Image này được build từ Repo Backend
+    image: ${{ secrets.DOCKER_USERNAME }}/my-project-backend:latest 
     container_name: my-backend
     restart: always
     ports:
@@ -38,7 +38,8 @@ services:
 
   # 3. Frontend React/Nginx
   frontend:
-    image: huyhoang2609/my-project-frontend:latest # Tên Image Frontend
+    # Image này được build từ Repo Frontend (quan trọng tên phải khớp)
+    image: ${{ secrets.DOCKER_USERNAME }}/my-project-frontend:latest
     container_name: my-frontend
     restart: always
     ports:
