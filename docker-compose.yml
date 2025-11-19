@@ -46,7 +46,8 @@ services:
 
   # 3. Frontend React/Nginx (Cổng 80 mở ra ngoài)
   frontend:
-    image: huyhoang2609/my-project-frontend:latest
+    #image: huyhoang2609/my-project-frontend:latest
+    build: ./frontend
     container_name: my-frontend
     restart: always
     ports:
