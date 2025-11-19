@@ -2,14 +2,23 @@ version: '3.8'
 
 services:
   # Database
-  db:
+db:
     image: mysql:8.0
     container_name: my-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword123 
-      MYSQL_DATABASE: my_database
+      # --- Giữ nguyên các biến cũ ---
+      MYSQL_ROOT_PASSWORD: rootpassword123
+      MYSQL_DATABASE: my_database_name
+      # ------------------------------
+      
+      # 💡 THÊM 2 DÒNG NÀY ĐỂ FIX KẾT NỐI TỪ XA:
+      MYSQL_ROOT_HOST: "%" # Cho phép root user kết nối từ MỌI NƠI (cần thiết)
+      MYSQL_AUTHENTICATION_PLUGIN: 'mysql_native_password' # Dùng plugin tương thích với Workbench
+      
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql 
+    ports:
+      - "3306:3306" # Đảm bảo port này có
     networks:
       - app-network
 
@@ -34,7 +43,7 @@ services:
   # Frontend
   frontend:
     # Image này được build từ Repo Frontend (quan trọng tên phải khớp)
-    image: ${{ secrets.DOCKER_USERNAME }}/my-project-frontend:latest
+    image: huyhoang2609/my-project-frontend:latest
     container_name: my-frontend
     restart: always
     ports:
