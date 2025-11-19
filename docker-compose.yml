@@ -23,8 +23,8 @@ services:
     image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
       
     # FIX RACE CONDITION: Sử dụng biến SLEEP_TIME
     command: bash -c "sleep ${SLEEP_TIME} && npm run start" 
