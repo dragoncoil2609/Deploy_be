@@ -6,13 +6,13 @@ services:
     image: mysql:8.0
     container_name: my-mysql
     ports:
-      - "3306:3306" # Mở cổng DB ra host EC2 (để kết nối Workbench)
+      - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword123
-      MYSQL_DATABASE: my_database
-      # FIX LỖI WORKBENCH VÀ KẾT NỐI TỪ XA
-      MYSQL_ROOT_HOST: "%" # Cho phép kết nối từ mọi IP
-      MYSQL_AUTHENTICATION_PLUGIN: 'mysql_native_password' # Fix lỗi driver của MySQL 8.0
+      # Lấy mật khẩu từ file .env
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD} 
+      MYSQL_DATABASE: ${DB_DATABASE_NAME}
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_AUTHENTICATION_PLUGIN: 'mysql_native_password'
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -20,18 +20,28 @@ services:
 
   # 2. Backend API (Node.js)
   backend:
-    # 💡 FIX INTERPOLATION: Hardcode username và dùng tên image đã push
     image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
     ports:
       - "3000:3000"
+      
+    # FIX RACE CONDITION: Sử dụng biến SLEEP_TIME
+    command: bash -c "sleep ${SLEEP_TIME} && npm run start" 
+
     environment:
-      # KẾT NỐI DB: Host là tên service 'db'
+      # Lấy biến DB và SMTP từ file .env
       DB_HOST: db
       DB_USER: root
-      DB_PASS: rootpassword123
-      DB_NAME: my_database_name
+      DB_PASS: ${DB_ROOT_PASSWORD}
+      DB_NAME: ${DB_DATABASE_NAME}
+      
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      
     depends_on:
       - db
     networks:
