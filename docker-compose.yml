@@ -1,24 +1,27 @@
 version: '3.8'
 
 services:
-  # Database
+  # 1. Database MySQL
   db:
     image: mysql:8.0
     container_name: my-mysql
     ports:
-      - "3306:3306" # Mở cổng DB ra host EC2
+      - "3306:3306" # Mở cổng DB ra host EC2 (để kết nối Workbench)
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword123 
+      MYSQL_ROOT_PASSWORD: rootpassword123
       MYSQL_DATABASE: my_database
+      # FIX LỖI WORKBENCH VÀ KẾT NỐI TỪ XA
+      MYSQL_ROOT_HOST: "%" # Cho phép kết nối từ mọi IP
+      MYSQL_AUTHENTICATION_PLUGIN: 'mysql_native_password' # Fix lỗi driver của MySQL 8.0
     volumes:
-      - mysql_data:/var/lib/mysql 
+      - mysql_data:/var/lib/mysql
     networks:
       - app-network
 
   # 2. Backend API (Node.js)
   backend:
-    # Image này được build từ Repo Backend
-    image: ${{ secrets.DOCKER_USERNAME }}/my-project-backend:latest 
+    # 💡 FIX INTERPOLATION: Hardcode username và dùng tên image đã push
+    image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
     ports:
@@ -36,7 +39,7 @@ services:
 
   # 3. Frontend React/Nginx
   frontend:
-    # Image này được build từ Repo Frontend (quan trọng tên phải khớp)
+    # Tên Image đã xác nhận từ log CI/CD
     image: huyhoang2609/my-project-frontend:latest
     container_name: my-frontend
     restart: always
