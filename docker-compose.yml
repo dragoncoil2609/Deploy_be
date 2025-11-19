@@ -1,15 +1,13 @@
-version: '3.8'
+# 1. XÓA dòng version: '3.8' (vì nó lỗi thời với Compose V2)
 
 services:
-  # 1. Database MySQL
+  # 1. Database MySQL (Cổng 3306 chỉ mở nội bộ, không mở ra Host)
   db:
     image: mysql:8.0
     container_name: my-mysql
-    ports:
-      - "3306:3306"
+    # XÓA BỎ ports: "3306:3306" ĐỂ TĂNG CƯỜNG BẢO MẬT
     environment:
-      # Lấy mật khẩu từ file .env
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD} 
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_DATABASE_NAME}
       MYSQL_ROOT_HOST: "%"
       MYSQL_AUTHENTICATION_PLUGIN: 'mysql_native_password'
@@ -18,19 +16,18 @@ services:
     networks:
       - app-network
 
-  # 2. Backend API (Node.js)
+  # 2. Backend API (Node.js) - Cổng 3000 chỉ mở cho Nginx
   backend:
     image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
+    # THAY THẾ 'ports' BẰNG 'expose' để ẩn cổng 3000 khỏi công cộng (FIX LỖI CORS)
     expose:
-      - "3000"
-      
-    # FIX RACE CONDITION: Sử dụng biến SLEEP_TIME
-    command: bash -c "sleep ${SLEEP_TIME} && npm run start" 
+      - "3000"
+
+    command: bash -c "sleep ${SLEEP_TIME} && npm run start"
 
     environment:
-      # Lấy biến DB và SMTP từ file .env
       DB_HOST: db
       DB_USER: root
       DB_PASS: ${DB_ROOT_PASSWORD}
@@ -47,14 +44,16 @@ services:
     networks:
       - app-network
 
-  # 3. Frontend React/Nginx
+  # 3. Frontend React/Nginx (Cổng 80 mở ra ngoài)
   frontend:
-    # Tên Image đã xác nhận từ log CI/CD
     image: huyhoang2609/my-project-frontend:latest
     container_name: my-frontend
     restart: always
     ports:
-      - "80:80" # Cổng Web chính
+      - "80:80"
+    environment:
+      - VITE_API_BASE_URL=http://54.66.11.139/api 
+      # Nếu bạn có các biến môi trường khác, hãy thêm chúng vào đây
     depends_on:
       - backend
     networks:
