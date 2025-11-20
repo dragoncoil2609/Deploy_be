@@ -1,14 +1,13 @@
-# 1. XÓA dòng version: '3.8' (vì nó lỗi thời với Compose V2)
-
 services:
-  # 1. Database MySQL (Cổng 3306 chỉ mở nội bộ, không mở ra Host)
+  # 1. Database MySQL
   db:
     image: mysql:8.0
     container_name: my-mysql
-    # XÓA BỎ ports: "3306:3306" ĐỂ TĂNG CƯỜNG BẢO MẬT
+    # Cổng 3306 đã được ẩn (không có ports) để bảo mật
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_DATABASE_NAME}
+      # Đã điền mật khẩu cứng để khớp với Backend
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: mini_e_db
       MYSQL_ROOT_HOST: "%"
       MYSQL_AUTHENTICATION_PLUGIN: 'mysql_native_password'
     volumes:
@@ -16,45 +15,44 @@ services:
     networks:
       - app-network
 
-  # 2. Backend API (Node.js) - Cổng 3000 chỉ mở cho Nginx
+  # 2. Backend API (Node.js)
   backend:
     image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
-    # THAY THẾ 'ports' BẰNG 'expose' để ẩn cổng 3000 khỏi công cộng (FIX LỖI CORS)
     expose:
-      - "3000"
+      - "3000" # Chỉ mở nội bộ cho Nginx
 
-    command: bash -c "sleep ${SLEEP_TIME} && npm run start"
+    # Đã sửa lỗi 'sleep missing operand' bằng cách điền số 10 trực tiếp
+    command: bash -c "sleep 10 && npm run start"
 
     environment:
       DB_HOST: db
       DB_USER: root
-      DB_PASS: ${DB_ROOT_PASSWORD}
-      DB_NAME: ${DB_DATABASE_NAME}
+      # Mật khẩu này PHẢI KHỚP với MYSQL_ROOT_PASSWORD ở trên
+      DB_PASS: root123
+      DB_NAME: mini_e_db
       
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_SECURE: ${SMTP_SECURE}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
+      # Điền tạm thông tin SMTP để tránh lỗi crash (bạn sửa lại sau nếu cần gửi mail thật)
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_SECURE: "false"
+      SMTP_USER: user@example.com
+      SMTP_PASS: password123
       
     depends_on:
       - db
     networks:
       - app-network
 
-  # 3. Frontend React/Nginx (Cổng 80 mở ra ngoài)
+  # 3. Frontend React/Nginx
   frontend:
-    #image: huyhoang2609/my-project-frontend:latest
-    build: ./frontend
+    # Đã chuyển lại dùng IMAGE vì trên Server bạn không có source code để BUILD
+    image: huyhoang2609/my-project-frontend:latest
     container_name: my-frontend
     restart: always
     ports:
       - "80:80"
-    environment:
-      - VITE_API_BASE_URL=http://54.66.11.139/api 
-      # Nếu bạn có các biến môi trường khác, hãy thêm chúng vào đây
     depends_on:
       - backend
     networks:
