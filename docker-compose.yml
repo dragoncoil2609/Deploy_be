@@ -20,7 +20,7 @@ services:
     image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
-    expose:
+    ports:
       - "3000"
     
     # Lệnh sleep giữ nguyên 10s để đợi DB
