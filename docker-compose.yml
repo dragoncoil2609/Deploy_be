@@ -3,9 +3,7 @@ services:
   db:
     image: mysql:8.0
     container_name: my-mysql
-    # Cổng 3306 đã được ẩn (không có ports) để bảo mật
     environment:
-      # Đã điền mật khẩu cứng để khớp với Backend
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: mini_e_db
       MYSQL_ROOT_HOST: "%"
@@ -15,47 +13,52 @@ services:
     networks:
       - app-network
 
- # 2. Backend API (Node.js)
+  # 2. Backend API (Node.js)
   backend:
     image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
-    ports:
-      - "3000"
     
-    # Lệnh sleep giữ nguyên 10s để đợi DB
+    # --- SỬA LỖI 1: Mở cổng tường minh để debug được bằng curl ---
+    ports:
+      - "3000:3000"
+    
     command: bash -c "sleep 10 && npm run start"
 
     environment:
-      # --- CẤU HÌNH DATABASE (Giữ nguyên để khớp với Container DB hiện tại) ---
+      # Database
       DB_HOST: db
       DB_PORT: 3306
       DB_USER: root
-      DB_PASS: root123    # <--- Lưu ý: Dùng mật khẩu hiện tại của Docker (root123)
-      DB_NAME: mini_e_db  # <--- Dùng tên DB hiện tại của Docker
+      DB_PASS: root123
+      DB_NAME: mini_e_db
       DB_SSL: "false"
 
-      # --- CẤU HÌNH APP & JWT (Lấy từ .env của bạn) ---
+      # App
       PORT: 3000
-      NODE_ENV: development # Chạy trên server nên để production
+      NODE_ENV: development # Để xem log lỗi chi tiết
       BCRYPT_SALT_ROUNDS: 12
       BCRYPT_PEPPER: quochiepdepzai
       
+      # JWT
       ACCESS_TOKEN_SECRET: dev_access_secret_change_me
       ACCESS_TOKEN_EXPIRES: 15m
       REFRESH_TOKEN_SECRET: dev_refresh_secret_change_me
       REFRESH_TOKEN_EXPIRES: 7d
       REFRESH_COOKIE_NAME: refreshToken
 
-      # --- CẤU HÌNH EMAIL (QUAN TRỌNG NHẤT ĐỂ FIX LỖI 500) ---
+      # Email (Gmail Port 465/SSL)
       SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 465   # <--- Đã sửa thành 465 theo file gốc
-      SMTP_SECURE: "true" # <--- Đã sửa thành true (SSL)
+      SMTP_PORT: 465
+      SMTP_SECURE: "true"
       SMTP_USER: quochiep1610@gmail.com
       SMTP_PASS: xbrukrqfxqlfzbdd
       MAIL_FROM: quochiep1610@gmail.com
 
-      # --- CẤU HÌNH OTP ---
+      # --- SỬA LỖI 2: Bỏ qua lỗi chứng chỉ SSL trong Docker ---
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+
+      # OTP
       OTP_WINDOW_MINUTES: 5
       OTP_RESEND_COOLDOWN_SECONDS: 60
 
@@ -66,7 +69,6 @@ services:
 
   # 3. Frontend React/Nginx
   frontend:
-    # Đã chuyển lại dùng IMAGE vì trên Server bạn không có source code để BUILD
     image: huyhoang2609/my-project-frontend:latest
     container_name: my-frontend
     restart: always
