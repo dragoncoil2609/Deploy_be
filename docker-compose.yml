@@ -53,7 +53,7 @@ services:
       SMTP_SECURE: "true" # <--- Đã sửa thành true (SSL)
       SMTP_USER: quochiep1610@gmail.com
       SMTP_PASS: xbrukrqfxqlfzbdd
-      MAIL_FROM: '"Mini E" <quochiep1610@gmail.com>'
+      MAIL_FROM: quochiep1610@gmail.com
 
       # --- CẤU HÌNH OTP ---
       OTP_WINDOW_MINUTES: 5
