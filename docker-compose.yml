@@ -15,31 +15,50 @@ services:
     networks:
       - app-network
 
-  # 2. Backend API (Node.js)
+ # 2. Backend API (Node.js)
   backend:
     image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
     expose:
-      - "3000" # Chỉ mở nội bộ cho Nginx
-
-    # Đã sửa lỗi 'sleep missing operand' bằng cách điền số 10 trực tiếp
+      - "3000"
+    
+    # Lệnh sleep giữ nguyên 10s để đợi DB
     command: bash -c "sleep 10 && npm run start"
 
     environment:
+      # --- CẤU HÌNH DATABASE (Giữ nguyên để khớp với Container DB hiện tại) ---
       DB_HOST: db
+      DB_PORT: 3306
       DB_USER: root
-      # Mật khẩu này PHẢI KHỚP với MYSQL_ROOT_PASSWORD ở trên
-      DB_PASS: root123
-      DB_NAME: mini_e_db
+      DB_PASS: root123    # <--- Lưu ý: Dùng mật khẩu hiện tại của Docker (root123)
+      DB_NAME: mini_e_db  # <--- Dùng tên DB hiện tại của Docker
+      DB_SSL: "false"
+
+      # --- CẤU HÌNH APP & JWT (Lấy từ .env của bạn) ---
+      PORT: 3000
+      NODE_ENV: production # Chạy trên server nên để production
+      BCRYPT_SALT_ROUNDS: 12
+      BCRYPT_PEPPER: quochiepdepzai
       
-      # Điền tạm thông tin SMTP để tránh lỗi crash (bạn sửa lại sau nếu cần gửi mail thật)
+      ACCESS_TOKEN_SECRET: dev_access_secret_change_me
+      ACCESS_TOKEN_EXPIRES: 15m
+      REFRESH_TOKEN_SECRET: dev_refresh_secret_change_me
+      REFRESH_TOKEN_EXPIRES: 7d
+      REFRESH_COOKIE_NAME: refreshToken
+
+      # --- CẤU HÌNH EMAIL (QUAN TRỌNG NHẤT ĐỂ FIX LỖI 500) ---
       SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      SMTP_SECURE: "false"
-      SMTP_USER: user@example.com
-      SMTP_PASS: password123
-      
+      SMTP_PORT: 465   # <--- Đã sửa thành 465 theo file gốc
+      SMTP_SECURE: "true" # <--- Đã sửa thành true (SSL)
+      SMTP_USER: quochiep1610@gmail.com
+      SMTP_PASS: xbrukrqfxqlfzbdd
+      MAIL_FROM: '"Mini E" <quochiep1610@gmail.com>'
+
+      # --- CẤU HÌNH OTP ---
+      OTP_WINDOW_MINUTES: 5
+      OTP_RESEND_COOLDOWN_SECONDS: 60
+
     depends_on:
       - db
     networks:
