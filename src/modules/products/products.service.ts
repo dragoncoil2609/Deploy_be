@@ -209,6 +209,7 @@ export class ProductsService {
 
   async findAllBasic(page = 1, limit = 20) {
     const [items, total] = await this.productsRepo.findAndCount({
+      relations: ['images'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -217,7 +218,10 @@ export class ProductsService {
   }
 
   async findOnePublic(id: number) {
-    const product = await this.productsRepo.findOne({ where: { id } });
+    const product = await this.productsRepo.findOne({
+      where: { id },
+      relations: ['images'],
+    });
     if (!product) throw new NotFoundException('Không tìm thấy sản phẩm');
     return product;
   }
