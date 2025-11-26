@@ -16,7 +16,11 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   app.useGlobalFilters(new ApiExceptionFilter());
-  app.setGlobalPrefix('api');
+  
+  // Đặt global prefix 'api' nhưng exclude '/uploads' để ServeStaticModule hoạt động
+  app.setGlobalPrefix('api', {
+    exclude: ['/uploads/(.*)'],
+  });
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
