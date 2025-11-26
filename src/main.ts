@@ -50,6 +50,10 @@ async function bootstrap() {
     'http://localhost:3000',   // FE/BE cùng cổng hoặc FE dev
     'http://192.168.1.199',    // FE qua Nginx (80)
     'http://192.168.1.199:80',
+    'https://54.66.11.139',    // Production FE (HTTPS port 80 - default)
+    'https://54.66.11.139:80', // Production FE (HTTPS port 80 - explicit)
+    'http://54.66.11.139',     // Production FE (HTTP port 80 - default)
+    'http://54.66.11.139:80',  // Production FE (HTTP port 80 - explicit)
     ...extraFromEnv,
   ]);
 
