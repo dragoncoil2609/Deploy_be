@@ -86,7 +86,7 @@ services:
     environment:
       # Bật chế độ chặn tấn công (SQLi, XSS...)
       - MODSEC_AUDIT_ENGINE=RelevantOnly
-      - MODSEC_RULE_ENGINE=On 
+      - MODSEC_RULE_ENGINE=DetectionOnly
     volumes:
       # Mount chứng chỉ SSL (Chế độ chỉ đọc)
       - ./certs:/etc/nginx/certs:ro
