@@ -7,17 +7,23 @@ import * as fs from 'fs';
 @Injectable()
 export class CloudinaryService {
   private readonly logger = new Logger(CloudinaryService.name);
+  private isConfigured = false;
 
   constructor(private readonly configService: ConfigService) {
+    this.initializeConfig();
+  }
+
+  private initializeConfig() {
     const cloudName = this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
     const apiKey = this.configService.get<string>('CLOUDINARY_API_KEY');
     const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET');
 
     if (!cloudName || !apiKey || !apiSecret) {
-      this.logger.error(
-        'Cloudinary configuration missing. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET',
+      this.logger.warn(
+        'Cloudinary configuration missing. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET. Cloudinary features will be disabled.',
       );
-      throw new Error('Cloudinary configuration is incomplete');
+      this.isConfigured = false;
+      return;
     }
 
     cloudinary.config({
@@ -26,10 +32,20 @@ export class CloudinaryService {
       api_secret: apiSecret,
     });
 
+    this.isConfigured = true;
     this.logger.log('Cloudinary configured successfully');
   }
 
+  private ensureConfigured() {
+    if (!this.isConfigured) {
+      throw new Error(
+        'Cloudinary configuration is incomplete. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET',
+      );
+    }
+  }
+
   async uploadImage(filePath: string, folder: string = 'products'): Promise<string> {
+    this.ensureConfigured();
     try {
       if (!fs.existsSync(filePath)) {
         throw new Error(`File not found: ${filePath}`);
@@ -83,6 +99,7 @@ export class CloudinaryService {
     filename: string,
     folder: string = 'products',
   ): Promise<string> {
+    this.ensureConfigured();
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -120,6 +137,7 @@ export class CloudinaryService {
   }
 
   async deleteImage(publicId: string): Promise<void> {
+    this.ensureConfigured();
     try {
       await cloudinary.uploader.destroy(publicId);
       this.logger.log(`Deleted image from Cloudinary: ${publicId}`);
