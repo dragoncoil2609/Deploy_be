@@ -81,19 +81,28 @@ export class ProductsController {
 
     if (files && files.length > 0) {
       for (const file of files) {
+        const filePath = join(process.cwd(), 'uploads', 'products', file.filename);
+        
+        if (!fs.existsSync(filePath)) {
+          throw new BadRequestException(
+            `File không tồn tại sau khi upload: ${file.originalname}`,
+          );
+        }
+
         try {
-          const filePath = join(process.cwd(), 'uploads', 'products', file.filename);
           const cloudinaryUrl = await this.cloudinaryService.uploadImage(filePath, 'products');
           uploadedUrls.push(cloudinaryUrl);
-
           fs.unlinkSync(filePath);
-        } catch (error) {
-          console.error(`Failed to upload ${file.filename} to Cloudinary:`, error);
-          const filePath = join(process.cwd(), 'uploads', 'products', file.filename);
+        } catch (error: any) {
+          const errorMessage =
+            error?.message ||
+            `Không thể upload ảnh ${file.originalname} lên Cloudinary`;
+          
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
           }
-          throw new BadRequestException(`Không thể upload ảnh ${file.originalname} lên Cloudinary`);
+
+          throw new BadRequestException(errorMessage);
         }
       }
     }
