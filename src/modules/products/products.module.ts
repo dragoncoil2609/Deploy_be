@@ -7,13 +7,14 @@ import { ProductImage } from './entities/product-image.entity';
 import { ProductVariant } from './entities/product-variant.entity';
 import { Shop } from '../../modules/shops/entities/shop.entity';
 import { ShopStats } from '../../modules/shops/entities/shop-stats.entity';
+import { CloudinaryService } from '../../common/services/cloudinary.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, ProductImage, ProductVariant, Shop, ShopStats]),
   ],
   controllers: [ProductsController],
-  providers: [ProductsService],
+  providers: [ProductsService, CloudinaryService],
   exports: [ProductsService],
 })
 export class ProductsModule {}

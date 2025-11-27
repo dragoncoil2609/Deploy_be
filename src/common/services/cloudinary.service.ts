@@ -26,6 +26,10 @@ export class CloudinaryService {
         ],
       });
 
+      if (!result) {
+        throw new Error('Cloudinary upload returned undefined result');
+      }
+
       this.logger.log(`Uploaded image to Cloudinary: ${result.secure_url}`);
       return result.secure_url;
     } catch (error) {
@@ -55,6 +59,14 @@ export class CloudinaryService {
             this.logger.error(`Failed to upload image from buffer: ${error.message}`, error.stack);
             return reject(error);
           }
+
+          // Sửa lỗi: Kiểm tra result có tồn tại không trước khi dùng
+          if (!result) {
+            const err = new Error('Cloudinary upload returned undefined result');
+            this.logger.error(err.message);
+            return reject(err);
+          }
+
           this.logger.log(`Uploaded image to Cloudinary: ${result.secure_url}`);
           resolve(result.secure_url);
         },
@@ -86,4 +98,3 @@ export class CloudinaryService {
     }
   }
 }
-

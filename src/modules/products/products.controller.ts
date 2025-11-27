@@ -25,6 +25,7 @@ import { AccessTokenGuard } from '../../common/guards/access-token.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '../../modules/users/entities/user.entity';
 import { UpdateProductDto } from './dto/search-product.dto';
+import { CloudinaryService } from '../../common/services/cloudinary.service';
 
 // ==== cấu hình upload nhiều ảnh ====
 const uploadOptions: MulterOptions = {
@@ -50,7 +51,10 @@ const uploadOptions: MulterOptions = {
 
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   // ===== public list/detail =====
   @Get()
@@ -73,8 +77,26 @@ export class ProductsController {
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request,
   ) {
-    const base = `${req.protocol}://${req.get('host')}`;
-    const uploadedUrls = (files ?? []).map((f) => `${base}/uploads/products/${f.filename}`);
+    const uploadedUrls: string[] = [];
+
+    if (files && files.length > 0) {
+      for (const file of files) {
+        try {
+          const filePath = join(process.cwd(), 'uploads', 'products', file.filename);
+          const cloudinaryUrl = await this.cloudinaryService.uploadImage(filePath, 'products');
+          uploadedUrls.push(cloudinaryUrl);
+
+          fs.unlinkSync(filePath);
+        } catch (error) {
+          console.error(`Failed to upload ${file.filename} to Cloudinary:`, error);
+          const filePath = join(process.cwd(), 'uploads', 'products', file.filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+          throw new BadRequestException(`Không thể upload ảnh ${file.originalname} lên Cloudinary`);
+        }
+      }
+    }
 
     const product = await this.productsService.createBySeller(userId, {
       ...dto,
