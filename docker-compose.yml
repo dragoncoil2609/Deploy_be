@@ -1,64 +1,125 @@
-version: '3.8'
-
 services:
-  # 1. Database MySQL
+  # 1. Database MySQL (Lưu trữ dữ liệu)
   db:
     image: mysql:8.0
     container_name: my-mysql
-    ports:
-      - "3306:3306"
+    restart: always
     environment:
-      # Lấy mật khẩu từ file .env
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD} 
-      MYSQL_DATABASE: ${DB_DATABASE_NAME}
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: mini_e_db
       MYSQL_ROOT_HOST: "%"
+      # Plugin xác thực tương thích với Client cũ/NestJS
       MYSQL_AUTHENTICATION_PLUGIN: 'mysql_native_password'
+    command: --default-authentication-plugin=mysql_native_password
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
-  # 2. Backend API (Node.js)
+  # 2. Redis (Cache & Queue)
+  redis:
+    image: redis:alpine
+    container_name: my-redis
+    restart: always
+    networks:
+      - app-network
+
+  # 3. Backend API (NestJS - Xử lý logic)
   backend:
     image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
-    ports:
-      - "3000:3000"
-      
-    # FIX RACE CONDITION: Sử dụng biến SLEEP_TIME
-    command: bash -c "sleep ${SLEEP_TIME} && npm run start" 
+    
+    # Chỉ mở cổng 3000 nội bộ cho WAF/Nginx gọi
+    # KHÔNG dùng 'ports' để tránh lộ ra Internet (Fix lỗi CORS & Bảo mật)
+    expose:
+      - "3000"
+    
+    # Chờ 10s để Database khởi động xong mới chạy App
+    command: bash -c "sleep 10 && npm run start"
 
     environment:
-      # Lấy biến DB và SMTP từ file .env
+      # --- KẾT NỐI HẠ TẦNG ---
       DB_HOST: db
+      DB_PORT: 3306
       DB_USER: root
-      DB_PASS: ${DB_ROOT_PASSWORD}
-      DB_NAME: ${DB_DATABASE_NAME}
+      DB_PASS: root123
+      DB_NAME: mini_e_db
+      DB_SSL: "false"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # --- APP CONFIG ---
+      PORT: 3000
+      NODE_ENV: development # Để xem log lỗi chi tiết
       
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_SECURE: ${SMTP_SECURE}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
+      # --- JWT SECRETS ---
+      ACCESS_TOKEN_SECRET: dev_access_secret_change_me
+      ACCESS_TOKEN_EXPIRES: 15m
+      REFRESH_TOKEN_SECRET: dev_refresh_secret_change_me
+      REFRESH_TOKEN_EXPIRES: 7d
+      REFRESH_COOKIE_NAME: refreshToken
+
+      # --- EMAIL SMTP (GMAIL - Đã test thành công) ---
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 465
+      SMTP_SECURE: "true"
+      SMTP_USER: quochiep1610@gmail.com
+      SMTP_PASS: xbrukrqfxqlfzbdd
+      MAIL_FROM: quochiep1610@gmail.com
+
       CLOUDINARY_CLOUD_NAME: dehw5arxd
       CLOUDINARY_API_KEY: 876869416627633
       CLOUDINARY_API_SECRET: pq_9mukiNtE8nqgCMSJD4-ZgbfY
-
       
+      # Bỏ qua lỗi check chứng chỉ SSL khi gửi mail từ trong Docker
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+
+      # --- OTP ---
+      OTP_WINDOW_MINUTES: 5
+      OTP_RESEND_COOLDOWN_SECONDS: 60
+
     depends_on:
       - db
+      - redis
     networks:
       - app-network
 
-  # 3. Frontend React/Nginx
+  # 4. WAF Gateway (Nginx + ModSecurity + SSL)
+  # Đây là cổng duy nhất mở ra Internet (80, 443)
+  waf:
+    image: owasp/modsecurity-crs:nginx
+    container_name: my-waf-gateway
+    restart: always
+    ports:
+      - "80:80"   # HTTP (Chuyển hướng sang HTTPS)
+      - "443:443" # HTTPS (Bảo mật)
+    environment:
+      # Bật chế độ chặn tấn công (SQLi, XSS...)
+      - MODSEC_AUDIT_ENGINE=RelevantOnly
+      - MODSEC_RULE_ENGINE=On 
+    volumes:
+      # Mount chứng chỉ SSL (Chế độ chỉ đọc)
+      - ./certs:/etc/nginx/certs:ro
+      # Mount cấu hình Nginx (Đổi tên file đích để tránh lỗi 'Resource busy')
+      - ./waf-conf/default.conf:/etc/nginx/conf.d/custom-routes.conf
+    depends_on:
+      - frontend
+    networks:
+      - app-network
+
+  # 5. Frontend (ReactJS - Giao diện)
   frontend:
-    # Tên Image đã xác nhận từ log CI/CD
     image: huyhoang2609/my-project-frontend:latest
     container_name: my-frontend
     restart: always
-    ports:
-      - "80:80" # Cổng Web chính
+    # Chỉ mở cổng 80 nội bộ cho WAF gọi
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:
