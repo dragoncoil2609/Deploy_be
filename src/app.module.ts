@@ -62,7 +62,7 @@ import { OrdersModule } from './modules/orders/orders.module';
           database: database.name,
           ssl: database.ssl,
           autoLoadEntities: true,
-          synchronize: true, // dùng migration
+          synchronize: false,
           logging: process.env.NODE_ENV !== 'production',
         }) as TypeOrmModuleOptions,
     }),

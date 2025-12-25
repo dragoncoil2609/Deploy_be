@@ -13,6 +13,18 @@ export class RequireVariantInCartItems1700000003001
       WHERE variantId IS NULL
     `);
 
+    // đảm bảo có index cho FK(cartId) trước khi drop unique composite (MySQL yêu cầu)
+    const cartIdIdx = await q.query(`
+      SHOW INDEX FROM cart_items
+      WHERE Column_name = 'cartId'
+    `);
+    if (!Array.isArray(cartIdIdx) || cartIdIdx.length === 0) {
+      await q.query(`
+        ALTER TABLE cart_items
+        ADD INDEX IDX_cart (cartId)
+      `);
+    }
+
     // 2) Drop unique cũ (nếu tồn tại)
     const oldIdx = await q.query(`
       SHOW INDEX FROM cart_items
