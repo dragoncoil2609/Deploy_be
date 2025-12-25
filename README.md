@@ -31,6 +31,10 @@
 $ npm install
 ```
 
+## ENV (Production)
+
+Tạo file `.env` cùng thư mục với `docker-compose.yml` trên server và copy mẫu từ `docs/ENV.example`, sau đó điền các giá trị secret (SMTP/VNPAY/CLOUDINARY/TWILIO...).
+
 ## Compile and run the project
 
 ```bash
