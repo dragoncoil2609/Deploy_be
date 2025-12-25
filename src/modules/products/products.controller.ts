@@ -22,7 +22,6 @@ import * as fs from 'fs';
 import { randomBytes } from 'crypto';
 import type { Request } from 'express';
 import { Express } from 'express';
-import { cloudinary } from '../../config/cloudinary.config';
 
 import { Public } from '../../common/decorators/public.decorator';
 
@@ -98,7 +97,6 @@ export class ProductsController {
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request, // không dùng nữa nhưng giữ cho đỡ phải sửa signature ở chỗ khác
   ) {
-<<<<<<< HEAD
     const uploadedUrls: string[] = [];
 
     if (files && files.length > 0) {
@@ -127,30 +125,11 @@ export class ProductsController {
           throw new BadRequestException(errorMessage);
         }
       }
-=======
-    // 1) Multer đã lưu file vào uploads/products
-    // 2) Ta lấy đường dẫn local đó để upload lên Cloudinary
-    const cloudinaryUrls: string[] = [];
-
-    if (files && files.length > 0) {
-      const uploadResults = await Promise.all(
-        files.map((file) =>
-          cloudinary.uploader.upload((file as any).path, {
-            folder: 'mini-e/products', // bạn có thể đổi tên folder trên Cloudinary nếu muốn
-          }),
-        ),
-      );
-
-      uploadResults.forEach((res) => {
-        cloudinaryUrls.push(res.secure_url); // URL cuối cùng dùng để lưu DB
-      });
->>>>>>> 2ac537fc98d52155aa1aac41cd83869d687d4535
     }
 
     const product = await this.productsService.createBySeller(userId, {
       ...dto,
-      // ưu tiên dùng URL từ Cloudinary; nếu không có file upload thì fallback sang dto.images (nếu FE gửi sẵn)
-      images: cloudinaryUrls.length ? cloudinaryUrls : dto.images,
+      images: uploadedUrls.length ? uploadedUrls : dto.images,
     });
 
     return { success: true, data: product };
