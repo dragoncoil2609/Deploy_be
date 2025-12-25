@@ -3,7 +3,7 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 # Install netcat để check database connection
-RUN apt-get update && apt-get install -y netcat-traditional && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache netcat-openbsd
 
 COPY package*.json ./
 RUN npm install
