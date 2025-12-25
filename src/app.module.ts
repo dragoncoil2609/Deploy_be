@@ -21,8 +21,6 @@ import { User } from './modules/users/entities/user.entity';
 import { CartModule } from './modules/cart/cart.module';
 import { AddressesModule } from './modules/addresses/addresses.module';
 import { OrdersModule } from './modules/orders/orders.module';
-import { CategoriesModule } from './modules/categories/categories.module';
-import { ReviewsModule } from './modules/reviews/reviews.module';
 
 
 @Module({
@@ -30,6 +28,21 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
+      serveStaticOptions: {
+        index: false, // Không serve index.html
+        setHeaders: (res, path) => {
+          // Set Content-Type đúng cho images
+          if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+            res.setHeader('Content-Type', 'image/jpeg');
+          } else if (path.endsWith('.png')) {
+            res.setHeader('Content-Type', 'image/png');
+          } else if (path.endsWith('.webp')) {
+            res.setHeader('Content-Type', 'image/webp');
+          } else if (path.endsWith('.gif')) {
+            res.setHeader('Content-Type', 'image/gif');
+          }
+        },
+      },
     }),
     ConfigModule.forRoot({
       isGlobal: true,
@@ -61,8 +74,6 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
     CartModule,
     AddressesModule,
     OrdersModule,
-    CategoriesModule,
-    ReviewsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AccessTokenGuard }, // yêu cầu JWT mặc định

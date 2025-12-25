@@ -1,8 +1,12 @@
 # ---- build ----
 FROM node:20-alpine AS build
 WORKDIR /app
+
+# Install netcat để check database connection
+RUN apt-get update && apt-get install -y netcat-traditional && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 COPY . .
 # Nếu bạn dùng Prisma, mở dòng sau:
 # RUN npx prisma generate
