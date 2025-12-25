@@ -1,18 +1,19 @@
-# ---- build ----
-FROM node:20-alpine AS build
+FROM node:20
 WORKDIR /app
+
+# Install netcat để check database connection
+RUN apt-get update && apt-get install -y netcat-traditional && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 COPY . .
-# Nếu bạn dùng Prisma, mở dòng sau:
-# RUN npx prisma generate
+
+# Build application
 RUN npm run build
 
-# ---- runtime ----
-FROM node:20-alpine
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+CMD ["/app/entrypoint.sh"]
