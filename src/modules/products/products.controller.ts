@@ -1,6 +1,17 @@
 import {
-  BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, Req,
-  UseGuards, UseInterceptors, UploadedFiles,
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+  UseInterceptors,
+  UploadedFiles,
   ParseIntPipe,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -10,9 +21,10 @@ import { extname, join } from 'path';
 import * as fs from 'fs';
 import { randomBytes } from 'crypto';
 import type { Request } from 'express';
-// import type * as Express from 'express';
 import { Express } from 'express';
+import { cloudinary } from '../../config/cloudinary.config';
 
+import { Public } from '../../common/decorators/public.decorator';
 
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -20,14 +32,12 @@ import { GenerateVariantsDto } from './dto/generate-variants.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
 
 import { AccessTokenGuard } from '../../common/guards/access-token.guard';
-// import { RolesGuard } from '../../common/guards/roles.guard';
-// import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '../../modules/users/entities/user.entity';
 import { UpdateProductDto } from './dto/search-product.dto';
 import { CloudinaryService } from '../../common/services/cloudinary.service';
 
-// ==== cấu hình upload nhiều ảnh ====
+// ==== cấu hình upload nhiều ảnh (vẫn lưu vào uploads/products) ====
 const uploadOptions: MulterOptions = {
   storage: diskStorage({
     destination: (req, file, cb) => {
@@ -57,9 +67,20 @@ export class ProductsController {
   ) {}
 
   // ===== public list/detail =====
+  @Public()
   @Get()
   async list(@Query('page') page = '1', @Query('limit') limit = '20') {
     const data = await this.productsService.findAllBasic(Number(page), Number(limit));
+    return { success: true, data };
+  }
+
+  @Get('by-shop/:shopId')
+  async listByShop(
+    @Param('shopId', ParseIntPipe) shopId: number,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    const data = await this.productsService.findByShop(shopId, Number(page), Number(limit));
     return { success: true, data };
   }
 
@@ -75,8 +96,9 @@ export class ProductsController {
     @CurrentUser('sub') userId: number,
     @Body() dto: CreateProductDto,
     @UploadedFiles() files: Express.Multer.File[],
-    @Req() req: Request,
+    @Req() req: Request, // không dùng nữa nhưng giữ cho đỡ phải sửa signature ở chỗ khác
   ) {
+<<<<<<< HEAD
     const uploadedUrls: string[] = [];
 
     if (files && files.length > 0) {
@@ -105,12 +127,32 @@ export class ProductsController {
           throw new BadRequestException(errorMessage);
         }
       }
+=======
+    // 1) Multer đã lưu file vào uploads/products
+    // 2) Ta lấy đường dẫn local đó để upload lên Cloudinary
+    const cloudinaryUrls: string[] = [];
+
+    if (files && files.length > 0) {
+      const uploadResults = await Promise.all(
+        files.map((file) =>
+          cloudinary.uploader.upload((file as any).path, {
+            folder: 'mini-e/products', // bạn có thể đổi tên folder trên Cloudinary nếu muốn
+          }),
+        ),
+      );
+
+      uploadResults.forEach((res) => {
+        cloudinaryUrls.push(res.secure_url); // URL cuối cùng dùng để lưu DB
+      });
+>>>>>>> 2ac537fc98d52155aa1aac41cd83869d687d4535
     }
 
     const product = await this.productsService.createBySeller(userId, {
       ...dto,
-      images: uploadedUrls.length ? uploadedUrls : dto.images,
+      // ưu tiên dùng URL từ Cloudinary; nếu không có file upload thì fallback sang dto.images (nếu FE gửi sẵn)
+      images: cloudinaryUrls.length ? cloudinaryUrls : dto.images,
     });
+
     return { success: true, data: product };
   }
 
@@ -164,7 +206,13 @@ export class ProductsController {
     @CurrentUser('role') role: UserRole,
     @Body() dto: UpdateVariantDto,
   ) {
-    const data = await this.productsService.updateVariant(Number(productId), Number(variantId), userId, role, dto);
+    const data = await this.productsService.updateVariant(
+      Number(productId),
+      Number(variantId),
+      userId,
+      role,
+      dto,
+    );
     return { success: true, data };
   }
 }
