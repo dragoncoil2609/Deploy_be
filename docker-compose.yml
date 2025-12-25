@@ -1,16 +1,20 @@
 services:
-  # 1. Database MySQL (Lưu trữ dữ liệu)
+  # 1. Database MySQL
   db:
     image: mysql:8.0
     container_name: my-mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: mini_e_db
+      # Cập nhật pass mới
+      MYSQL_ROOT_PASSWORD: "123456"
+      # Cập nhật tên DB mới
+      MYSQL_DATABASE: mini_ecommerce
       MYSQL_ROOT_HOST: "%"
-      # Plugin xác thực tương thích với Client cũ/NestJS
       MYSQL_AUTHENTICATION_PLUGIN: 'mysql_native_password'
+    
+    # Lệnh này bắt buộc để NestJS kết nối được với MySQL 8
     command: --default-authentication-plugin=mysql_native_password
+    
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -20,7 +24,7 @@ services:
       timeout: 20s
       retries: 10
 
-  # 2. Redis (Cache & Queue)
+  # 2. Redis
   redis:
     image: redis:alpine
     container_name: my-redis
@@ -28,60 +32,80 @@ services:
     networks:
       - app-network
 
-  # 3. Backend API (NestJS - Xử lý logic)
+  # 3. Backend API
   backend:
     image: huyhoang2609/my-project-backend:latest
     container_name: my-backend
     restart: always
     
-    # Chỉ mở cổng 3000 nội bộ cho WAF/Nginx gọi
-    # KHÔNG dùng 'ports' để tránh lộ ra Internet (Fix lỗi CORS & Bảo mật)
+    # Chỉ mở cổng 3000 nội bộ
     expose:
       - "3000"
     
-    # Alpine image không có bash; dùng sh + netcat để đợi DB lên rồi chạy app (prod)
-    command: sh -c "until nc -z db 3306; do echo 'waiting for db...'; sleep 1; done; node dist/main.js"
+    # Chờ 10s để DB khởi động rồi mới chạy
+    command: bash -c "sleep 10 && npm run start"
 
     environment:
-      # --- KẾT NỐI HẠ TẦNG ---
+      # --- DATABASE (Lưu ý: Host phải là 'db', không được là localhost) ---
       DB_HOST: db
       DB_PORT: 3306
       DB_USER: root
-      DB_PASS: root123
-      DB_NAME: mini_e_db
+      DB_PASS: "123456"
+      DB_NAME: mini_ecommerce
       DB_SSL: "false"
+      
+      # --- REDIS ---
       REDIS_HOST: redis
       REDIS_PORT: 6379
 
-      # --- APP CONFIG ---
+      # --- APP CORE ---
       PORT: 3000
-      NODE_ENV: development # Để xem log lỗi chi tiết
+      # URL Frontend (Nếu chạy server thật hãy đổi localhost thành IP/Domain)
+      FRONTEND_URL: http://localhost:5173
       
-      # --- JWT SECRETS ---
+      # --- BCRYPT ---
+      BCRYPT_SALT_ROUNDS: 12
+      BCRYPT_PEPPER: quochiepdepzai
+
+      # --- JWT ---
       ACCESS_TOKEN_SECRET: dev_access_secret_change_me
       ACCESS_TOKEN_EXPIRES: 15m
       REFRESH_TOKEN_SECRET: dev_refresh_secret_change_me
       REFRESH_TOKEN_EXPIRES: 7d
       REFRESH_COOKIE_NAME: refreshToken
 
-      # --- EMAIL SMTP (GMAIL - Đã test thành công) ---
+      # --- EMAIL SMTP ---
       SMTP_HOST: smtp.gmail.com
       SMTP_PORT: 465
       SMTP_SECURE: "true"
       SMTP_USER: quochiep1610@gmail.com
-      SMTP_PASS: xbrukrqfxqlfzbdd
-      MAIL_FROM: quochiep1610@gmail.com
-
-      CLOUDINARY_CLOUD_NAME: dehw5arxd
-      CLOUDINARY_API_KEY: 876869416627633
-      CLOUDINARY_API_SECRET: pq_9mukiNtE8nqgCMSJD4-ZgbfY
-      
-      # Bỏ qua lỗi check chứng chỉ SSL khi gửi mail từ trong Docker
+      SMTP_PASS: ${SMTP_PASS}
+      MAIL_FROM: ${MAIL_FROM:-"Mini E <quochiep1610@gmail.com>"}
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
 
       # --- OTP ---
       OTP_WINDOW_MINUTES: 5
       OTP_RESEND_COOLDOWN_SECONDS: 60
+
+      # --- VNPAY (Lưu ý Return URL) ---
+      VNPAY_TMN_CODE: 40CQJZYY
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET}
+      VNPAY_ENDPOINT: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      # Nếu trên server AWS, đổi localhost:3000 thành IP/Domain của bạn
+      VNPAY_RETURN_URL: http://localhost:3000/api/payments/vnpay/return
+      VNPAY_LOCALE: vn
+      VNPAY_CURRENCY: VND
+      VNPAY_VERSION: 2.1.0
+
+      # --- CLOUDINARY ---
+      CLOUDINARY_CLOUD_NAME: dehw5arxd
+      CLOUDINARY_API_KEY: "876869416627633"
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+
+      # --- TWILIO SMS ---
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
 
     depends_on:
       - db
@@ -89,35 +113,30 @@ services:
     networks:
       - app-network
 
-  # 4. WAF Gateway (Nginx + ModSecurity + SSL)
-  # Đây là cổng duy nhất mở ra Internet (80, 443)
+  # 4. WAF Gateway
   waf:
     image: owasp/modsecurity-crs:nginx
     container_name: my-waf-gateway
     restart: always
     ports:
-      - "80:80"   # HTTP (Chuyển hướng sang HTTPS)
-      - "443:443" # HTTPS (Bảo mật)
+      - "80:80"
+      - "443:443"
     environment:
-      # Bật chế độ chặn tấn công (SQLi, XSS...)
       - MODSEC_AUDIT_ENGINE=RelevantOnly
       - MODSEC_RULE_ENGINE=On 
     volumes:
-      # Mount chứng chỉ SSL (Chế độ chỉ đọc)
       - ./certs:/etc/nginx/certs:ro
-      # Mount cấu hình Nginx (Đổi tên file đích để tránh lỗi 'Resource busy')
       - ./waf-conf/default.conf:/etc/nginx/conf.d/custom-routes.conf
     depends_on:
       - frontend
     networks:
       - app-network
 
-  # 5. Frontend (ReactJS - Giao diện)
+  # 5. Frontend
   frontend:
     image: huyhoang2609/my-project-frontend:latest
     container_name: my-frontend
     restart: always
-    # Chỉ mở cổng 80 nội bộ cho WAF gọi
     expose:
       - "80"
     depends_on:
