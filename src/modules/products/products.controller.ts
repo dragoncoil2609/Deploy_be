@@ -22,7 +22,6 @@ import * as fs from 'fs';
 import { randomBytes } from 'crypto';
 import type { Request } from 'express';
 import { Express } from 'express';
-import { cloudinary } from '../../config/cloudinary.config';
 
 import { Public } from '../../common/decorators/public.decorator';
 
@@ -36,6 +35,7 @@ import { AccessTokenGuard } from '../../common/guards/access-token.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '../../modules/users/entities/user.entity';
 import { UpdateProductDto } from './dto/search-product.dto';
+import { CloudinaryService } from '../../common/services/cloudinary.service';
 
 // ==== cấu hình upload nhiều ảnh (vẫn lưu vào uploads/products) ====
 const uploadOptions: MulterOptions = {
@@ -61,7 +61,10 @@ const uploadOptions: MulterOptions = {
 
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   // ===== public list/detail =====
   @Public()
@@ -95,28 +98,39 @@ export class ProductsController {
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request, // không dùng nữa nhưng giữ cho đỡ phải sửa signature ở chỗ khác
   ) {
-    // 1) Multer đã lưu file vào uploads/products
-    // 2) Ta lấy đường dẫn local đó để upload lên Cloudinary
-    const cloudinaryUrls: string[] = [];
+    const uploadedUrls: string[] = [];
 
     if (files && files.length > 0) {
-      const uploadResults = await Promise.all(
-        files.map((file) =>
-          cloudinary.uploader.upload((file as any).path, {
-            folder: 'mini-e/products', // bạn có thể đổi tên folder trên Cloudinary nếu muốn
-          }),
-        ),
-      );
+      for (const file of files) {
+        const filePath = join(process.cwd(), 'uploads', 'products', file.filename);
+        
+        if (!fs.existsSync(filePath)) {
+          throw new BadRequestException(
+            `File không tồn tại sau khi upload: ${file.originalname}`,
+          );
+        }
 
-      uploadResults.forEach((res) => {
-        cloudinaryUrls.push(res.secure_url); // URL cuối cùng dùng để lưu DB
-      });
+        try {
+          const cloudinaryUrl = await this.cloudinaryService.uploadImage(filePath, 'products');
+          uploadedUrls.push(cloudinaryUrl);
+          fs.unlinkSync(filePath);
+        } catch (error: any) {
+          const errorMessage =
+            error?.message ||
+            `Không thể upload ảnh ${file.originalname} lên Cloudinary`;
+          
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+
+          throw new BadRequestException(errorMessage);
+        }
+      }
     }
 
     const product = await this.productsService.createBySeller(userId, {
       ...dto,
-      // ưu tiên dùng URL từ Cloudinary; nếu không có file upload thì fallback sang dto.images (nếu FE gửi sẵn)
-      images: cloudinaryUrls.length ? cloudinaryUrls : dto.images,
+      images: uploadedUrls.length ? uploadedUrls : dto.images,
     });
 
     return { success: true, data: product };

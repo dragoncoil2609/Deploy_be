@@ -276,6 +276,7 @@ export class ProductsService {
   // Lấy danh sách sản phẩm kèm ảnh đại diện (isMain) – dùng cho trang list
   async findAllBasic(page = 1, limit = 20) {
     const [items, total] = await this.productsRepo.findAndCount({
+      relations: ['images'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -387,7 +388,10 @@ export class ProductsService {
 
   // Lấy chi tiết 1 sản phẩm + toàn bộ images
   async findOnePublic(id: number) {
-    const product = await this.productsRepo.findOne({ where: { id } });
+    const product = await this.productsRepo.findOne({
+      where: { id },
+      relations: ['images'],
+    });
     if (!product) throw new NotFoundException('Không tìm thấy sản phẩm');
 
     const images = await this.imagesRepo.find({

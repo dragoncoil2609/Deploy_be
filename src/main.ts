@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiExceptionFilter } from './common/filters/http-exception.filter';
@@ -7,10 +8,19 @@ import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   // bỏ cors: true, tự cấu hình enableCors bên dưới
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
+
+  // Bật Trust Proxy để nhận diện HTTPS từ Nginx
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   app.useGlobalFilters(new ApiExceptionFilter());
-  app.setGlobalPrefix('api');
+  
+  // Đặt global prefix 'api' nhưng exclude '/uploads' để ServeStaticModule hoạt động
+  app.setGlobalPrefix('api', {
+    exclude: ['/uploads/(.*)'],
+  });
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
@@ -44,6 +54,10 @@ async function bootstrap() {
     'http://localhost:3000',   // FE/BE cùng cổng hoặc FE dev
     'http://192.168.1.199',    // FE qua Nginx (80)
     'http://192.168.1.199:80',
+    'https://54.66.11.139',    // Production FE (HTTPS port 80 - default)
+    'https://54.66.11.139:80', // Production FE (HTTPS port 80 - explicit)
+    'http://54.66.11.139',     // Production FE (HTTP port 80 - default)
+    'http://54.66.11.139:80',  // Production FE (HTTP port 80 - explicit)
     ...extraFromEnv,
   ]);
 
