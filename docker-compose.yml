@@ -39,8 +39,8 @@ services:
     expose:
       - "3000"
     
-    # Chờ 10s để Database khởi động xong mới chạy App
-    command: bash -c "sleep 10 && npm run start"
+    # Alpine image không có bash; dùng sh + netcat để đợi DB lên rồi chạy app (prod)
+    command: sh -c "until nc -z db 3306; do echo 'waiting for db...'; sleep 1; done; node dist/main.js"
 
     environment:
       # --- KẾT NỐI HẠ TẦNG ---
